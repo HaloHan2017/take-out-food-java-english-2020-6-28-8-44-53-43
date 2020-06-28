@@ -1,3 +1,4 @@
+import java.util.ArrayList;
 import java.util.List;
 
 /*
@@ -14,7 +15,81 @@ public class App {
 
     public String bestCharge(List<String> inputs) {
         //TODO: write code here
+        StringBuilder stringBuilder = new StringBuilder("============= Order details =============\n");
+        List<String> halfItemInfos = new ArrayList<>();
+        int promotionPrice = 0;
+        int expectTotalPrice = 0;
+        int actualTotalPrice = 0;
 
+        // 获取 items和salesPromotions
+        List<Item> items = itemRepository.findAll();
+        List<SalesPromotion> salesPromotions = salesPromotionRepository.findAll();
+        List<String> relatedItems = salesPromotions.get(1).getRelatedItems();
+
+        //获取 inputs中商品信息以及数量
+        for (String s : inputs) {
+            // 从字符串中获取 商品name 和 数量
+            String[] splits = s.split(" x ");
+            String itemName = getItemNameById(splits[0]);
+            int itemPrice = getItemPriceByName(items, itemName);
+            int itemNum = Integer.parseInt(splits[1]);
+            stringBuilder.append(itemName + " x " + itemNum + " = " + (itemPrice * itemNum) + " yuan\n");
+            expectTotalPrice += itemPrice * itemNum;
+
+            // 获取 半价商品 信息
+            if (isHalfItem(relatedItems, splits[0])) {
+                halfItemInfos.add(itemName);
+                promotionPrice += (itemPrice * itemNum) / 2;
+            }
+        }
+
+        // 计算促销活动策略
+        if (promotionPrice > 6) {
+            // 1.是否包含半价商品
+            stringBuilder.append("-----------------------------------\n");
+            stringBuilder.append("Promotion used:\n");
+            stringBuilder.append("Half price for certain dishes (" + String.join("，", halfItemInfos) + ")，saving " + promotionPrice + " yuan\n");
+            actualTotalPrice = expectTotalPrice - promotionPrice;
+        } else if (expectTotalPrice >= 30) {
+            // 2.是否满三十 立减 六元
+            stringBuilder.append("-----------------------------------\n");
+            stringBuilder.append("Promotion used:\n");
+            stringBuilder.append("满30减6 yuan，saving 6 yuan\n");
+            actualTotalPrice = expectTotalPrice - 6;
+        }else {
+            actualTotalPrice = expectTotalPrice;
+        }
+        stringBuilder.append("-----------------------------------\n");
+        stringBuilder.append("Total：" + actualTotalPrice + " yuan\n");
+        stringBuilder.append("===================================");
+        return stringBuilder.toString();
+    }
+
+    private boolean isHalfItem(List<String> relatedItems, String itemId) {
+        for (String relatedItemId : relatedItems) {
+            if (relatedItemId.equals(itemId)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String getItemNameById(String id) {
+        List<Item> items = itemRepository.findAll();
+        for (Item item : items) {
+            if (item.getId().equals(id)) {
+                return item.getName();
+            }
+        }
         return null;
+    }
+
+    private int getItemPriceByName(List<Item> items, String itemName) {
+        for (Item item : items) {
+            if (item.getName().equals(itemName)) {
+                return new Double(item.getPrice()).intValue();
+            }
+        }
+        return -1;
     }
 }
